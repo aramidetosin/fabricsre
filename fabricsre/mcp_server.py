@@ -114,7 +114,7 @@ def triage_poll() -> str:
 
 @mcp.tool()
 def change_plan(intent_yaml: str) -> str:
-    """Validate a change intent (YAML, kind stretched_network) against the twin. Creates a change ref. No device is touched."""
+    """Validate a change intent (YAML; kinds stretched_network, drift_remediation, interface_admin_state) against the twin. Creates a change ref. No device is touched."""
     import yaml
     from .change import ChangeManager
     c = ctx(); return _j(ChangeManager(c["s"], c["nd"], c["db"], c["twin"]).plan(yaml.safe_load(intent_yaml), created_by="mcp"))

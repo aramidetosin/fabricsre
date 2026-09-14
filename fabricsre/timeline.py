@@ -28,7 +28,7 @@ from .nd import NDClient, NDError
 UTC = dt.timezone.utc
 EXPORTER_RE = re.compile(
     r"^(?P<rts>\S+) (?P<from>\S+) (?P<fac>\S+) Exporter\[\d+\]\[Facility: (?P<f2>\w+), Severity: (?P<sev>\w+)\] "
-    r"FabricName : (?P<fabric>\S+) Title : (?P<title>\S+) NDSeverity : (?P<ndsev>\w+) Nodes : (?P<nodes>\[[^\]]*\]) (?P<rest>.*)$")
+    r"FabricName : (?P<fabric>\S+) Title : (?P<title>\S+) NDSeverity : (?P<ndsev>\w+) (?:Nodes : (?P<nodes>\[[^\]]*\]) )?(?P<rest>.*)$")
 
 
 def _fp(*parts) -> str:
@@ -83,12 +83,12 @@ class Timeline:
                     continue
                 cmds = [c.get("command") for c in r.get("configCommandResponses", []) if c.get("command") not in (None, "configure terminal")]
                 failed = [c for c in r.get("configCommandResponses", []) if str(c.get("status", "")).upper() not in ("SUCCESS", "")]
-                ev.append(dict(ts=ts, source="deployment", fabric=f, device=r.get("switchName") or r.get("hostName"), actor=r.get("user"),
+                ev.append(dict(ts=ts, source="deployment", fabric=f, device=(r.get("switchName") or r.get("hostname")) or r.get("hostName"), actor=r.get("user"),
                                kind=r.get("source") or "deploy", severity="error" if failed else "info",
                                summary=f"NDFC deployed {len(cmds)} lines to {r.get('switchName') or r.get('hostName')}: {r.get('status')}"
                                        + (f"; first lines: {' / '.join(cmds[:3])}" if cmds else "") + (f"; FAILED: {failed[0].get('command')} {str(failed[0].get('cliResponse'))[:80]}" if failed else ""),
                                ref=str(r.get("id") or r.get("deploymentId") or ""), raw=r,
-                               fingerprint=_fp("dep", f, r.get("switchName"), ts.isoformat(), r.get("status"), len(cmds))))
+                               fingerprint=_fp("dep", f, (r.get("switchName") or r.get("hostname")), ts.isoformat(), r.get("status"), len(cmds))))
         return self.db.add_timeline(ev)
 
     def _policies(self, fabrics) -> int:
@@ -171,7 +171,7 @@ class Timeline:
             if parsed:
                 ev.append(dict(ts=parsed["ts"], source="syslog", fabric=parsed["fabric"], device=",".join(parsed["nodes"]) or None, actor="nd-exporter",
                                kind="anomaly-cleared" if parsed["cleared"] else ("anomaly-suppressed" if parsed.get("suppressed") else "anomaly-raised"), severity=parsed["nd_severity"],
-                               summary=f"ND exported {parsed['title']} ({parsed['nd_severity']}) nodes {parsed['nodes']}: {parsed['text'][:140]}",
+                               summary=f"ND exported {'clear' if parsed['cleared'] else ('suppression' if parsed.get('suppressed') else 'raise')} of {parsed['title']} ({parsed['nd_severity']}) nodes {parsed['nodes']}: {parsed['text'][:140]}",
                                ref=parsed["title"], raw=None, fingerprint=_fp("sys", line)))
                 continue
             m = re.match(r"^(\S+) (\S+) (\S+) (.*)$", line)
@@ -204,10 +204,15 @@ def parse_exporter_line(line: str) -> dict | None:
         return None
     rest = m.group("rest")
     cleared = re.search(r"Cleared : (\w+)", rest)
-    try:
-        nodes = json.loads(m.group("nodes"))
-    except json.JSONDecodeError:
-        nodes = [m.group("nodes").strip("[]")]
+    if m.group("nodes") is None:
+        # fabric-level messages name the switch as "Switch [hostname/serial]:" instead of a Nodes list
+        sw = re.search(r"Switch \[([^/\]]+)/", rest)
+        nodes = [sw.group(1)] if sw else []
+    else:
+        try:
+            nodes = json.loads(m.group("nodes"))
+        except json.JSONDecodeError:
+            nodes = [m.group("nodes").strip("[]")]
     supp = re.search(r"Suppressed : (\w+)", rest); ack = re.search(r"Acknowledged : (\w+)", rest)
     return dict(ts=_ts(m.group("rts")), sender=m.group("from"), fabric=m.group("fabric"), title=m.group("title"), nd_severity=m.group("ndsev").lower(),
                 nodes=nodes, cleared=(cleared.group(1).lower() == "true") if cleared else False,
