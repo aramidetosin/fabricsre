@@ -46,6 +46,7 @@ def main(argv=None) -> int:
     tl.add_parser("collect")
     sh = tl.add_parser("show"); sh.add_argument("--since", default="60m", help="relative (30m, 6h, 2d) or an ISO timestamp (2026-09-14T17:50Z)"); sh.add_argument("--until"); sh.add_argument("--fabric"); sh.add_argument("--device")
     sh.add_argument("--source", help="comma separated sources to include: deployment,policy,event,anomaly,audit,fabric_audit,syslog,fabricsre")
+    sh.add_argument("--logins", action="store_true", help="also show ND login audit records (hidden by default)")
 
     tr = sub.add_parser("triage", help="anomalies to incidents (#3)").add_subparsers(dest="sub", required=True)
     tr.add_parser("poll"); tr.add_parser("incidents"); tr.add_parser("close-resolved")
@@ -102,7 +103,7 @@ def main(argv=None) -> int:
         else:
             end = dt.datetime.now(dt.timezone.utc) if not args.until else _when(args.until)
             start = _when(args.since) if args.since[:4].isdigit() else end - _dur(args.since)
-            rows = T.window(start, end, fabric=args.fabric, device=args.device, sources=args.source.split(",") if args.source else None)
+            rows = T.window(start, end, fabric=args.fabric, device=args.device, sources=args.source.split(",") if args.source else None, logins=args.logins)
             if args.json:
                 _out(rows, True)
             else:

@@ -183,9 +183,11 @@ class Timeline:
         return self.db.add_timeline(ev)
 
     # ------------------------------------------------------------ queries
-    def window(self, start: dt.datetime, end: dt.datetime, fabric: str | None = None, device: str | None = None, sources: list[str] | None = None) -> list[dict]:
+    def window(self, start: dt.datetime, end: dt.datetime, fabric: str | None = None, device: str | None = None, sources: list[str] | None = None, logins: bool = False) -> list[dict]:
         sql = "SELECT ts, source, fabric, device, actor, kind, severity, summary, ref FROM timeline_events WHERE ts BETWEEN %s AND %s"
         params: list = [start, end]
+        if not logins:
+            sql += " AND NOT (source = 'audit' AND kind ILIKE 'login%%')"
         if sources:
             sql += " AND source = ANY(%s)"; params.append(list(sources))
         if fabric:
