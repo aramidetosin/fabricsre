@@ -1,0 +1,101 @@
+# multisite: two VXLAN EVPN sites (eBGP underlay, Multi-AS) joined by an NDFC-managed inter-site network.
+# DC1: dc1-spine1/2, dc1-leaf1/2, dc1-bgw1/2 | DC2: dc2-spine1/2, dc2-leaf1/2, dc2-bgw1/2 | ISN: core1, core2 | 4 single-homed hosts.
+# Mgmt on the nat0 bridge 172.29.129.0/24 (.31-.48). NX-OS ethX == Ethernet1/X.
+#   spineN Eth1/1..1/4 -> leaf1, leaf2, bgw1, bgw2 (Eth1/1 = spine1 side, Eth1/2 = spine2 side on every leaf/bgw)
+#   leafN Eth1/3 -> hostN eth1 (single-homed, no vPC on purpose)
+#   bgwN Eth1/3 -> core1, Eth1/4 -> core2 ; core1/core2 Eth1/1..1/4 = dc1-bgw1, dc1-bgw2, dc2-bgw1, dc2-bgw2 ; core1 Eth1/5 <-> core2 Eth1/5
+name: multisite
+
+mgmt:
+  network: ndfc-mgmt
+  bridge: nat0
+  ipv4-subnet: 172.29.129.0/24
+  ipv4-gw: 172.29.129.254
+  external-access: false
+
+topology:
+  kinds:
+    cisco_n9kv:
+      image: aninchat/n9kv:9300v64-10.6.1.F
+      startup-config: configs/__clabNodeName__.cfg
+      env:
+        CLAB_MGMT_PASSTHROUGH: "true"
+    linux:
+      image: ghcr.io/srl-labs/network-multitool:latest
+      dns:
+        servers: [172.29.129.53]
+        search: [office.lab]
+
+  nodes:
+    # ---- DC1 (spines AS 65100; leaf1/leaf2/bgw1/bgw2 own ASNs)
+    dc1-spine1: {kind: cisco_n9kv, mgmt-ipv4: 172.29.129.31}
+    dc1-spine2: {kind: cisco_n9kv, mgmt-ipv4: 172.29.129.32}
+    dc1-leaf1: {kind: cisco_n9kv, mgmt-ipv4: 172.29.129.33}
+    dc1-leaf2: {kind: cisco_n9kv, mgmt-ipv4: 172.29.129.34}
+    dc1-bgw1: {kind: cisco_n9kv, mgmt-ipv4: 172.29.129.35}
+    dc1-bgw2: {kind: cisco_n9kv, mgmt-ipv4: 172.29.129.36}
+    dc1-host1:
+      kind: linux
+      mgmt-ipv4: 172.29.129.39
+      exec:
+        - ip addr add 192.168.100.11/24 dev eth1
+        - ip link set eth1 up
+    dc1-host2:
+      kind: linux
+      mgmt-ipv4: 172.29.129.40
+      exec:
+        - ip addr add 192.168.100.12/24 dev eth1
+        - ip link set eth1 up
+    # ---- DC2 (spines AS 65200; leaf1/leaf2/bgw1/bgw2 own ASNs)
+    dc2-spine1: {kind: cisco_n9kv, mgmt-ipv4: 172.29.129.41}
+    dc2-spine2: {kind: cisco_n9kv, mgmt-ipv4: 172.29.129.42}
+    dc2-leaf1: {kind: cisco_n9kv, mgmt-ipv4: 172.29.129.43}
+    dc2-leaf2: {kind: cisco_n9kv, mgmt-ipv4: 172.29.129.44}
+    dc2-bgw1: {kind: cisco_n9kv, mgmt-ipv4: 172.29.129.45}
+    dc2-bgw2: {kind: cisco_n9kv, mgmt-ipv4: 172.29.129.46}
+    dc2-host1:
+      kind: linux
+      mgmt-ipv4: 172.29.129.47
+      exec:
+        - ip addr add 192.168.100.21/24 dev eth1
+        - ip link set eth1 up
+    dc2-host2:
+      kind: linux
+      mgmt-ipv4: 172.29.129.48
+      exec:
+        - ip addr add 192.168.100.22/24 dev eth1
+        - ip link set eth1 up
+    # ---- ISN (AS 65500)
+    core1: {kind: cisco_n9kv, mgmt-ipv4: 172.29.129.37}
+    core2: {kind: cisco_n9kv, mgmt-ipv4: 172.29.129.38}
+
+  links:
+    - endpoints: ["dc1-spine1:eth1", "dc1-leaf1:eth1"]
+    - endpoints: ["dc1-spine1:eth2", "dc1-leaf2:eth1"]
+    - endpoints: ["dc1-spine1:eth3", "dc1-bgw1:eth1"]
+    - endpoints: ["dc1-spine1:eth4", "dc1-bgw2:eth1"]
+    - endpoints: ["dc1-spine2:eth1", "dc1-leaf1:eth2"]
+    - endpoints: ["dc1-spine2:eth2", "dc1-leaf2:eth2"]
+    - endpoints: ["dc1-spine2:eth3", "dc1-bgw1:eth2"]
+    - endpoints: ["dc1-spine2:eth4", "dc1-bgw2:eth2"]
+    - endpoints: ["dc1-leaf1:eth3", "dc1-host1:eth1"]
+    - endpoints: ["dc1-leaf2:eth3", "dc1-host2:eth1"]
+    - endpoints: ["dc2-spine1:eth1", "dc2-leaf1:eth1"]
+    - endpoints: ["dc2-spine1:eth2", "dc2-leaf2:eth1"]
+    - endpoints: ["dc2-spine1:eth3", "dc2-bgw1:eth1"]
+    - endpoints: ["dc2-spine1:eth4", "dc2-bgw2:eth1"]
+    - endpoints: ["dc2-spine2:eth1", "dc2-leaf1:eth2"]
+    - endpoints: ["dc2-spine2:eth2", "dc2-leaf2:eth2"]
+    - endpoints: ["dc2-spine2:eth3", "dc2-bgw1:eth2"]
+    - endpoints: ["dc2-spine2:eth4", "dc2-bgw2:eth2"]
+    - endpoints: ["dc2-leaf1:eth3", "dc2-host1:eth1"]
+    - endpoints: ["dc2-leaf2:eth3", "dc2-host2:eth1"]
+    - endpoints: ["dc1-bgw1:eth3", "core1:eth1"]
+    - endpoints: ["dc1-bgw1:eth4", "core2:eth1"]
+    - endpoints: ["dc1-bgw2:eth3", "core1:eth2"]
+    - endpoints: ["dc1-bgw2:eth4", "core2:eth2"]
+    - endpoints: ["dc2-bgw1:eth3", "core1:eth3"]
+    - endpoints: ["dc2-bgw1:eth4", "core2:eth3"]
+    - endpoints: ["dc2-bgw2:eth3", "core1:eth4"]
+    - endpoints: ["dc2-bgw2:eth4", "core2:eth4"]
+    - endpoints: ["core1:eth5", "core2:eth5"]

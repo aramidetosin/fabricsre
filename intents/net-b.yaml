@@ -1,0 +1,10 @@
+# FabricSRE intent: a second stretched network, used to exercise the change-assurance state machine.
+kind: stretched_network
+name: NET-B
+vlan: 2310
+vni: 30010
+gateway: 192.168.101.254/24
+vrf: TENANT
+fabrics: [DC1, DC2]
+description: fabricsre change assurance test
+host_ports: []          # no host ports: nothing user-facing moves while the state machine is exercised

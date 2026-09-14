@@ -1,0 +1,9 @@
+# FabricSRE intent: bring one interface back up through Nexus Dashboard's interface admin-state action.
+# The plan reads the live state from the Manage API, the preview records NDFC's own interface preview and the exact
+# line the switch will receive, a human approves, apply sends the action, verify waits for admin and oper up.
+kind: interface_admin_state
+fabric: DC1
+switch: dc1-bgw1
+interface: Ethernet1/3
+state: up
+reason: DCI link to core1 Ethernet1/1 administratively down; incident 15 and investigation H6 point at it

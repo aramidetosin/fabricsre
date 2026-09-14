@@ -1,0 +1,6 @@
+# FabricSRE intent: bring one switch back to NDFC intent. Recalculate tells NDFC what the switch is missing; FabricSRE
+# previews exactly those lines, a human approves them, apply deploys to this switch only and verifies it is In-Sync.
+kind: drift_remediation
+fabric: DC1
+switch: dc1-bgw1
+reason: DCI link dc1-bgw1 Ethernet1/3 to core1 reported down; incident points at this switch
