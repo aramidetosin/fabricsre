@@ -44,7 +44,7 @@ def main(argv=None) -> int:
 
     tl = sub.add_parser("timeline", help="what changed (#8)").add_subparsers(dest="sub", required=True)
     tl.add_parser("collect")
-    sh = tl.add_parser("show"); sh.add_argument("--since", default="60m", help="e.g. 30m, 6h, 2d"); sh.add_argument("--until"); sh.add_argument("--fabric"); sh.add_argument("--device")
+    sh = tl.add_parser("show"); sh.add_argument("--since", default="60m", help="relative (30m, 6h, 2d) or an ISO timestamp (2026-09-14T17:50Z)"); sh.add_argument("--until"); sh.add_argument("--fabric"); sh.add_argument("--device")
     sh.add_argument("--source", help="comma separated sources to include: deployment,policy,event,anomaly,audit,fabric_audit,syslog,fabricsre")
 
     tr = sub.add_parser("triage", help="anomalies to incidents (#3)").add_subparsers(dest="sub", required=True)
@@ -100,8 +100,8 @@ def main(argv=None) -> int:
         if args.sub == "collect":
             _out(T.collect(), args.json)
         else:
-            end = dt.datetime.now(dt.timezone.utc) if not args.until else dt.datetime.fromisoformat(args.until)
-            start = end - _dur(args.since)
+            end = dt.datetime.now(dt.timezone.utc) if not args.until else _when(args.until)
+            start = _when(args.since) if args.since[:4].isdigit() else end - _dur(args.since)
             rows = T.window(start, end, fabric=args.fabric, device=args.device, sources=args.source.split(",") if args.source else None)
             if args.json:
                 _out(rows, True)
@@ -184,6 +184,12 @@ def main(argv=None) -> int:
             print("restored:", FI.restore(fault))
         return 0 if verdict == "PASS" else 3
     return 0
+
+
+def _when(s: str) -> dt.datetime:
+    """ISO timestamp ('2026-09-14T17:50Z' or '2026-09-14 17:50+00:00') -> aware datetime, UTC when no zone is given"""
+    t = dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
+    return t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)
 
 
 def _dur(s: str) -> dt.timedelta:

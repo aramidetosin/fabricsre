@@ -85,7 +85,7 @@ class Timeline:
                 failed = [c for c in r.get("configCommandResponses", []) if str(c.get("status", "")).upper() not in ("SUCCESS", "")]
                 ev.append(dict(ts=ts, source="deployment", fabric=f, device=(r.get("switchName") or r.get("hostname")) or r.get("hostName"), actor=r.get("user"),
                                kind=r.get("source") or "deploy", severity="error" if failed else "info",
-                               summary=f"NDFC deployed {len(cmds)} lines to {r.get('switchName') or r.get('hostName')}: {r.get('status')}"
+                               summary=f"NDFC deployed {len(cmds)} lines to {r.get('switchName') or r.get('hostname') or r.get('hostName')}: {r.get('status')}"
                                        + (f"; first lines: {' / '.join(cmds[:3])}" if cmds else "") + (f"; FAILED: {failed[0].get('command')} {str(failed[0].get('cliResponse'))[:80]}" if failed else ""),
                                ref=str(r.get("id") or r.get("deploymentId") or ""), raw=r,
                                fingerprint=_fp("dep", f, (r.get("switchName") or r.get("hostname")), ts.isoformat(), r.get("status"), len(cmds))))
