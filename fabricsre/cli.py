@@ -45,6 +45,7 @@ def main(argv=None) -> int:
     tl = sub.add_parser("timeline", help="what changed (#8)").add_subparsers(dest="sub", required=True)
     tl.add_parser("collect")
     sh = tl.add_parser("show"); sh.add_argument("--since", default="60m", help="e.g. 30m, 6h, 2d"); sh.add_argument("--until"); sh.add_argument("--fabric"); sh.add_argument("--device")
+    sh.add_argument("--source", help="comma separated sources to include: deployment,policy,event,anomaly,audit,fabric_audit,syslog,fabricsre")
 
     tr = sub.add_parser("triage", help="anomalies to incidents (#3)").add_subparsers(dest="sub", required=True)
     tr.add_parser("poll"); tr.add_parser("incidents"); tr.add_parser("close-resolved")
@@ -101,7 +102,7 @@ def main(argv=None) -> int:
         else:
             end = dt.datetime.now(dt.timezone.utc) if not args.until else dt.datetime.fromisoformat(args.until)
             start = end - _dur(args.since)
-            rows = T.window(start, end, fabric=args.fabric, device=args.device)
+            rows = T.window(start, end, fabric=args.fabric, device=args.device, sources=args.source.split(",") if args.source else None)
             if args.json:
                 _out(rows, True)
             else:
