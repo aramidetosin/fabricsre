@@ -4,6 +4,11 @@ An SRE agent toolkit for Cisco Nexus Dashboard managed VXLAN EVPN fabrics. Built
 Nexus Dashboard 4.3.1.175 with NDFC 12.6.0.267, two eBGP Multi-AS sites, an NDFC managed ISN, one Multi-Site
 fabric group, fourteen N9K-C9300v switches under containerlab.
 
+The build is written up in two posts on levelupit.xyz:
+
+- [FabricSRE part 1: an SRE agent for Cisco Nexus Dashboard](https://www.levelupit.xyz/fabricsre-part-1-an-sre-agent-for-cisco-nexus-dashboard/), the rules, the fabric twin, the ten-hypothesis investigation and the fault harness (publishes 22 September 2026).
+- [FabricSRE part 2: triage, change assurance and the timeline](https://www.levelupit.xyz/fabricsre-part-2-triage-change-assurance-and-the-timeline/), anomaly export, triage, a full incident, the change state machine, the timeline and the MCP server (publishes 23 September 2026).
+
 The division of labour is fixed:
 
 - **The model reasons.** It writes intents, orders hypotheses, and narrates results.
